@@ -1,0 +1,706 @@
+/* ===========================
+   C24 Platform
+   =========================== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    cursor: url('hand/111.png'), auto;
+}
+
+:root {
+    --desktop-edge-gap: clamp(24px, 2.22vw, 42px);
+    --desktop-top-gap: clamp(72px, 12vh, 137px);
+    --desktop-bottom-gap: 50svh;
+    --desktop-masonry-gap: clamp(12px, 1.1vw, 18px);
+    --desktop-gallery-width: clamp(300px, 31vw, 560px);
+    --desktop-image-title-gap: var(--desktop-edge-gap);
+    --desktop-title-width: 315px;
+    --desktop-title-left: calc(var(--desktop-edge-gap) + var(--desktop-gallery-width) + var(--desktop-image-title-gap));
+    --desktop-detail-width: clamp(220px, 21vw, 301px);
+    --desktop-detail-left: calc(var(--desktop-title-left) + var(--desktop-title-width) + clamp(24px, 3.6vw, 52px));
+    
+    --ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+body {
+    font-family: 'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans GB', sans-serif;
+    background: #FFFFFF;
+    overflow-x: hidden;
+    overflow-y: auto;
+    width: 100%;
+    min-height: 100svh;
+    cursor: url('hand/111.png'), auto;
+}
+
+body.project-expanded {
+    overflow-y: auto;
+}
+
+/* ========== 框架 ========== */
+.frame {
+    position: relative;
+    width: 100%;
+    min-height: 100svh;
+    margin: 0;
+    padding: var(--desktop-top-gap) 0 var(--desktop-bottom-gap) var(--desktop-edge-gap);
+    background: #FFFFFF;
+}
+
+/* ========== 模糊层 ========== */
+.blur-layer {
+    position: fixed;
+    inset: 0;
+    backdrop-filter: blur(15px) saturate(1.2);
+    -webkit-backdrop-filter: blur(15px) saturate(1.2);
+    background: rgba(255, 255, 255, 0.2);
+    z-index: 50;
+    pointer-events: none;
+    transition: opacity 0.55s var(--ease-out-expo),
+                backdrop-filter 0.55s var(--ease-out-expo),
+                -webkit-backdrop-filter 0.55s var(--ease-out-expo);
+    will-change: opacity, backdrop-filter;
+}
+
+.blur-layer.active-0 { opacity: 1; }
+.blur-layer:not(.active-0) { opacity: 0; }
+
+body.project-expanded .blur-layer {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* ========== 左侧图片区 ========== */
+.left-images {
+    position: relative;
+    width: var(--desktop-gallery-width);
+    min-height: 50vh;
+    --masonry-gap: var(--desktop-masonry-gap);
+}
+
+.img-item {
+    position: absolute;
+    background: #D9D9D9;
+    overflow: hidden;
+    transition: filter 0.55s var(--ease-out-expo),
+                opacity 0.55s var(--ease-out-expo),
+                transform 0.55s var(--ease-out-expo);
+    will-change: filter, opacity, transform;
+}
+
+.img-item img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.img-number {
+    position: absolute;
+    left: 3px;
+    top: 3px;
+    z-index: 2;
+    font-weight: 300;
+    font-size: 12px;
+    line-height: 12px;
+    letter-spacing: 0.1em;
+    color: #000;
+    pointer-events: none;
+    transition: opacity 0.55s var(--ease-out-expo),
+                font-weight 0.3s ease;
+}
+
+/* ========== 序号区（隐藏） ========== */
+.numbers {
+    display: none;
+}
+
+/* ========== 中间文字区 ========== */
+.middle-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    position: fixed;
+    width: var(--desktop-title-width);
+    left: var(--desktop-title-left);
+    top: calc(var(--desktop-top-gap) + 15px);
+    max-height: calc(100svh - var(--desktop-top-gap) - 72px);
+    overflow-x: hidden;
+    overflow-y: auto;
+    z-index: 80;
+    scrollbar-width: none;
+}
+
+.middle-text::-webkit-scrollbar {
+    display: none;
+}
+
+/* 文字包裹层：用于 grid 展开动画 */
+.text-wrapper {
+    display: grid;
+    grid-template-rows: auto 0fr;
+    transition: grid-template-rows 0.6s var(--ease-out-expo);
+    will-change: grid-template-rows;
+}
+
+.text-wrapper.is-expanded {
+    grid-template-rows: auto 1fr;
+}
+
+/* 标题本体 */
+.text-item {
+    font-weight: 300;
+    font-size: 12px;
+    line-height: 12px;
+    letter-spacing: 0.1em;
+    color: #000;
+    width: 315px;
+    position: relative;
+    padding: 6px 0;
+    /* 默认模糊背景感 */
+    opacity: 0.4;
+    filter: blur(2px);
+    transform: scale(0.98);
+    transform-origin: left center;
+    transition: opacity 0.55s var(--ease-out-expo),
+                filter 0.55s var(--ease-out-expo),
+                transform 0.55s var(--ease-out-expo),
+                font-weight 0.3s ease;
+    will-change: opacity, filter, transform;
+    cursor: url('hand/111.png'), auto;
+}
+
+/* 流式详情：默认折叠 */
+.text-detail {
+    overflow: hidden;
+    min-height: 0;
+    opacity: 0;
+    transform: translateY(-12px);
+    transition: opacity 0.45s 0.05s var(--ease-out-expo),
+                transform 0.45s 0.05s var(--ease-out-expo);
+    will-change: opacity, transform;
+}
+
+.text-wrapper.is-expanded .text-detail {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.text-detail-inner {
+    padding: 16px 0 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.project-detail-intro-cn,
+.project-detail-intro-en {
+    width: 100%;
+    font-size: 12px;
+    line-height: 13px;
+    letter-spacing: 0.1em;
+    text-align: justify;
+    text-justify: inter-ideograph;
+    word-break: break-all;
+}
+
+.project-detail-intro-cn {
+    font-weight: 700;
+}
+
+.project-detail-intro-en {
+    font-weight: 500;
+}
+
+/* ========== 移动端项目流 ========== */
+.mobile-projects {
+    display: none;
+}
+
+/* ========== 右侧详情图片区 ========== */
+.project-detail-images {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    opacity: 0;
+    visibility: hidden;
+    position: fixed;
+    left: var(--desktop-detail-left);
+    top: var(--desktop-top-gap);
+    width: var(--desktop-detail-width);
+    max-height: calc(100svh - var(--desktop-top-gap) - 32px);
+    overflow: hidden auto;
+    z-index: 55;
+    transform: translateY(-10px);
+    transition: opacity 0.55s var(--ease-out-expo),
+                transform 0.55s var(--ease-out-expo),
+                visibility 0.55s ease;
+}
+
+body.project-expanded .project-detail-images {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.project-detail-image {
+    position: relative;
+    left: 0;
+    width: 100%;
+    flex: 0 0 auto;
+    overflow: hidden;
+    background: #D9D9D9;
+}
+
+.project-detail-image img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.project-detail-image-1,
+.project-detail-image-2 { aspect-ratio: 1364 / 1712; }
+.project-detail-image-3 { aspect-ratio: 1136 / 1712; }
+
+/* 旧版 fixed 文案区废弃 */
+#projectExpandedCopy {
+    display: none;
+}
+
+/* ========== ABOUT US ========== */
+.about-section {
+    display: block;
+    position: fixed;
+    width: 283px;
+    height: 261px;
+    left: auto;
+    right: var(--desktop-edge-gap);
+    top: calc(var(--desktop-top-gap) + 16px);
+    filter: drop-shadow(0px 3px 10px rgba(0,0,0,0.3));
+    color: inherit;
+    cursor: url('hand/222.png'), pointer;
+    text-decoration: none;
+    transition: opacity 0.45s var(--ease-out-expo),
+                filter 0.55s var(--ease-out-expo);
+}
+
+.about-section:hover { opacity: 0.72; }
+
+.about-title {
+    position: absolute;
+    height: 12px;
+    left: 0; right: 0; top: 0;
+    font-weight: 300; font-size: 12px; line-height: 12px;
+    text-align: right;
+    letter-spacing: 0.1em;
+    color: #000;
+}
+
+.about-content {
+    position: absolute;
+    width: 283px; height: 177px;
+    left: 0;
+    top: 28px;
+    font-weight: 300; font-size: 13px; line-height: 13px;
+    text-align: right;
+    letter-spacing: 0.1em;
+    color: #000;
+}
+
+/* ========== CONTACT ========== */
+.contact-section {
+    position: fixed;
+    width: 205.17px;
+    height: 37.7px;
+    left: auto;
+    right: calc(var(--desktop-edge-gap) + 77.83px);
+    top: calc(var(--desktop-top-gap) + 293px);
+    transition: opacity 0.55s var(--ease-out-expo),
+                filter 0.55s var(--ease-out-expo);
+}
+
+.contact-title {
+    position: absolute;
+    height: 12px;
+    left: 0; right: 31px; top: 0;
+    font-weight: 300; font-size: 12px; line-height: 12px;
+    text-align: right;
+    letter-spacing: 0.1em;
+    color: #000;
+}
+
+.contact-email {
+    position: absolute;
+    width: 127px; height: 12px;
+    left: 78.17px; top: 25.7px;
+    font-weight: 300; font-size: 12px; line-height: 12px;
+    text-align: right;
+    letter-spacing: 0.1em;
+    color: #000;
+}
+
+/* ========== 底部提示 ========== */
+.hint {
+    position: fixed;
+    bottom: 30px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    color: #999;
+    letter-spacing: 0.1em;
+    z-index: 300;
+    opacity: 0.6;
+    pointer-events: none;
+    transition: opacity 0.6s ease;
+}
+
+.hint.hidden { opacity: 0; }
+
+/* ========== 移动端适配 ========== */
+@media (max-width: 700px) {
+    :root {
+        --mobile-left: clamp(28px, 10vw, 48px);
+        --mobile-image-col: clamp(126px, 32vw, 150px);
+        --mobile-gap: clamp(24px, 7vw, 34px);
+        --mobile-title-col: calc(100vw - var(--mobile-left) - var(--mobile-image-col) - var(--mobile-gap) - 16px);
+    }
+
+    * { cursor: auto; }
+
+    body {
+        width: 100%;
+        height: auto;
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
+    body.project-expanded {
+        overflow-y: auto;
+    }
+
+    .frame {
+        width: 100vw;
+        min-height: 1756px;
+        padding: 0;
+        margin-left: 0;
+        margin-right: 0;
+        transform: none !important;
+        transform-origin: top left;
+    }
+
+    .frame.project-expanded-frame {
+        min-height: 3130px;
+    }
+
+    .blur-layer,
+    .left-images,
+    .numbers,
+    .middle-text {
+        display: none;
+    }
+
+    .about-section {
+        position: fixed;
+        left: var(--mobile-left);
+        right: auto;
+        top: 42px;
+        width: 184px;
+        height: auto;
+        filter: none;
+        z-index: 120;
+    }
+
+    .about-section:hover { opacity: 1; }
+
+    .about-title,
+    .about-content,
+    .contact-title,
+    .contact-email {
+        position: relative;
+        left: auto;
+        right: auto;
+        top: auto;
+        width: auto;
+        height: auto;
+        text-align: left;
+    }
+
+    .about-title,
+    .contact-title {
+        font-size: 9px;
+        line-height: 9px;
+        letter-spacing: 0.08em;
+    }
+
+    .about-content {
+        margin-top: 8px;
+        width: 184px;
+        font-size: 8px;
+        line-height: 8.8px;
+        letter-spacing: 0.06em;
+        text-align: left;
+    }
+
+    .contact-section {
+        position: fixed;
+        left: var(--mobile-left);
+        right: auto;
+        top: 240px;
+        width: 184px;
+        height: auto;
+        z-index: 120;
+    }
+
+    .contact-email {
+        margin-top: 7px;
+        font-size: 8px;
+        line-height: 8px;
+        letter-spacing: 0.08em;
+    }
+
+    .mobile-projects {
+        display: grid;
+        grid-template-columns: var(--mobile-image-col) var(--mobile-title-col);
+        column-gap: var(--mobile-gap);
+        align-items: start;
+        position: absolute;
+        left: var(--mobile-left);
+        top: 318px;
+        width: calc(100vw - var(--mobile-left) - 16px);
+        z-index: 30;
+    }
+
+    .mobile-project-gallery {
+        position: fixed;
+        left: var(--mobile-left);
+        top: 50%;
+        width: var(--mobile-image-col);
+        height: min(520px, calc(100vh - 320px));
+        min-height: 360px;
+        overflow: hidden;
+        z-index: 70;
+        transform: translateY(-50%);
+    }
+
+    .mobile-project-gallery-track {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-auto-flow: dense;
+        gap: 8px;
+        will-change: transform;
+        transition: none;
+    }
+
+    .mobile-project-copy {
+        position: fixed;
+        left: calc(var(--mobile-left) + var(--mobile-image-col) + var(--mobile-gap));
+        top: 50%;
+        width: var(--mobile-title-col);
+        height: 220px;
+        overflow: hidden;
+        padding: 0;
+        z-index: 100;
+        transform: translateY(-50%);
+        pointer-events: auto;
+    }
+
+    .mobile-project-copy::before,
+    .mobile-project-copy::after {
+        content: "";
+        position: absolute;
+        left: -8px;
+        right: -8px;
+        height: 82px;
+        z-index: 2;
+        pointer-events: none;
+    }
+
+    .mobile-project-copy::before {
+        top: 0;
+        background: linear-gradient(to bottom, #fff 0%, rgba(255,255,255,0.84) 62%, rgba(255,255,255,0) 100%);
+    }
+
+    .mobile-project-copy::after {
+        bottom: 0;
+        background: linear-gradient(to top, #fff 0%, rgba(255,255,255,0.84) 62%, rgba(255,255,255,0) 100%);
+    }
+
+    .mobile-project-title-track {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        position: relative;
+        z-index: 1;
+        will-change: transform;
+    }
+
+    .mobile-project-visual,
+    .mobile-project-title {
+        border: 0;
+        background: transparent;
+        color: #000;
+        font: inherit;
+        text-align: left;
+        appearance: none;
+        cursor: pointer;
+    }
+
+    .mobile-project-visual {
+        display: block;
+        position: relative;
+        width: 100%;
+        padding: 0;
+    }
+
+    .mobile-project-visual.is-landscape {
+        grid-column: span 2;
+    }
+
+    .mobile-project-item {
+        position: relative;
+        min-height: 22px;
+        color: #000;
+    }
+
+    .mobile-project-title {
+        display: block;
+        width: 100%;
+        padding: 0;
+        font-weight: 300;
+        font-size: 8px;
+        line-height: 8.8px;
+        letter-spacing: 0.08em;
+        color: #000;
+        opacity: 0.2;
+        filter: blur(2.6px);
+        transform: scale(0.98);
+        transform-origin: left top;
+        transition: opacity 0.08s linear, filter 0.08s linear, transform 0.08s linear;
+        word-break: break-word;
+    }
+
+    .mobile-project-description {
+        display: none;
+    }
+
+    .mobile-project-description p {
+        overflow: hidden;
+        font-weight: 300;
+        font-size: 8px;
+        line-height: 9px;
+        letter-spacing: 0.05em;
+        color: #000;
+        text-align: left;
+        word-break: break-word;
+    }
+
+    .mobile-project-item.is-open .mobile-project-description {
+        display: none;
+    }
+
+    .mobile-project-item.is-active .mobile-project-title {
+        opacity: 1;
+        filter: blur(0);
+        transform: scale(1);
+        font-weight: 700;
+    }
+
+    .mobile-project-item.is-muted .mobile-project-title {
+        opacity: 0.16;
+        filter: blur(2.8px);
+    }
+
+    .mobile-project-title:focus-visible,
+    .mobile-project-visual:focus-visible {
+        outline: 1px solid #000;
+        outline-offset: 4px;
+    }
+
+    .mobile-project-number {
+        position: absolute;
+        left: -16px;
+        top: 0;
+        font-weight: 300;
+        font-size: 8px;
+        line-height: 8px;
+        letter-spacing: 0.1em;
+        color: #000;
+        opacity: 0.3;
+        transition: opacity 0.5s ease, font-weight 0.3s ease;
+    }
+
+    .mobile-project-media {
+        display: block;
+        width: 100%;
+        height: auto;
+        aspect-ratio: 3 / 4;
+        overflow: hidden;
+        background: #D9D9D9;
+        filter: blur(13px);
+        opacity: 0.36;
+        transform: scale(0.98);
+        transform-origin: center;
+        transition: filter 0.12s linear,
+                    opacity 0.12s linear,
+                    transform 0.12s linear;
+    }
+
+    .mobile-project-visual[data-index="1"] .mobile-project-media,
+    .mobile-project-visual[data-index="3"] .mobile-project-media,
+    .mobile-project-visual[data-index="4"] .mobile-project-media,
+    .mobile-project-visual[data-index="8"] .mobile-project-media {
+        aspect-ratio: 3 / 4;
+    }
+
+    .mobile-project-visual[data-index="5"] .mobile-project-media {
+        aspect-ratio: 9 / 16;
+    }
+
+    .mobile-project-visual[data-index="7"] .mobile-project-media {
+        aspect-ratio: 3 / 4;
+    }
+
+    .mobile-project-visual.is-landscape .mobile-project-media {
+        aspect-ratio: 16 / 9;
+    }
+
+    .mobile-project-media img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .mobile-project-visual.is-active .mobile-project-media {
+        filter: blur(0);
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    .mobile-project-visual.is-active .mobile-project-number {
+        opacity: 1;
+        font-weight: 700;
+    }
+
+    .mobile-project-visual.is-muted .mobile-project-media {
+        filter: blur(14px);
+        opacity: 0.24;
+        transform: scale(0.96);
+    }
+
+    .mobile-project-visual.is-muted .mobile-project-number {
+        opacity: 0.22;
+    }
+
+    .project-detail-images {
+        display: none;
+    }
+
+    .hint {
+        display: none;
+    }
+}
+
+@media (max-width: 380px) {
+    .mobile-projects {
+        column-gap: var(--mobile-gap);
+    }
+}
