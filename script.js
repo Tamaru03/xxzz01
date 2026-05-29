@@ -4,7 +4,7 @@
  */
 
 const IMAGE_CONFIG = [
-    { index: '1', src: '/xxzz01/image/1.jpg', alt: 'Project 1' },
+      { index: '1', src: '/xxzz01/image/1.jpg', alt: 'Project 1' },
     { index: '2', src: '/xxzz01/image/2.jpg', alt: 'Project 2' },
     { index: '3', src: '/xxzz01/image/3.jpg', alt: 'Project 3' },
     { index: '4', src: '/xxzz01/image/6.jpg', alt: 'Project 4' },
@@ -53,7 +53,15 @@ const PROJECT_DETAIL_CONFIG = {
 
 const CURSOR_CLOSED = 'hand/111.png';
 const CURSOR_OPEN   = 'hand/222.png';
-const MOBILE_WHEEL_STEP = 140;
+const MOBILE_CANVAS_WIDTH = 460;
+const MOBILE_IMAGE_TOP = 428;
+const MOBILE_GROUP_HEIGHT = 1347.14;
+const MOBILE_GROUP_GAP = 16.08;
+const MOBILE_BOTTOM_SPACE = 32;
+const MOBILE_FOCUS_Y_RATIO = 0.62;
+const MOBILE_PAIR_LEFT_ANCHOR = 0.3;
+const MOBILE_PAIR_RIGHT_ANCHOR = 0.7;
+const MOBILE_DEFAULT_ANCHOR = 0.5;
 const DESKTOP_SCROLL_COMFORT = 0.28;
 
 let resizeRaf = null;
@@ -257,9 +265,12 @@ function resizeFrame() {
         const frame = document.getElementById('frame');
         if (!frame) return;
         if (isMobileLayout()) {
+            const groupCount = Math.max(1, Math.ceil(IMAGE_CONFIG.length / 4));
+            const mobileScale = window.innerWidth / MOBILE_CANVAS_WIDTH;
             const mobileHeight = Math.max(
-                window.innerHeight + (IMAGE_CONFIG.length - 1) * MOBILE_WHEEL_STEP + 360,
-                1720
+                (MOBILE_IMAGE_TOP + groupCount * MOBILE_GROUP_HEIGHT + (groupCount - 1) * MOBILE_GROUP_GAP + MOBILE_BOTTOM_SPACE) * mobileScale,
+                1756 * mobileScale,
+                window.innerHeight
             );
             frame.style.transform = 'none';
             frame.style.width = '';
@@ -287,9 +298,6 @@ function initInteraction() {
     const mobileItems = Array.from(document.querySelectorAll('.mobile-project-item'));
     const mobileVisuals = Array.from(document.querySelectorAll('.mobile-project-visual'));
     const mobileTitleButtons = Array.from(document.querySelectorAll('.mobile-project-title'));
-    const mobileGallery = document.querySelector('.mobile-project-gallery');
-    const mobileGalleryTrack = document.querySelector('.mobile-project-gallery-track');
-    const mobileTitleTrack = document.querySelector('.mobile-project-title-track');
     const blurLayer = document.getElementById('blurLayer');
     const hint = document.getElementById('hint');
     const frame = document.getElementById('frame');
@@ -301,6 +309,34 @@ function initInteraction() {
     let mobileActiveTarget = null;
     let leaveTimer = null;
     let mobileScrollRaf = null;
+
+    function getMobileVisualByIndex(targetIndex) {
+        return mobileVisuals.find(item => item.getAttribute('data-index') === targetIndex);
+    }
+
+    function getMobileVisualAnchorRatio(visual) {
+        const visualPosition = mobileVisuals.indexOf(visual);
+        if (visualPosition < 0) return MOBILE_DEFAULT_ANCHOR;
+
+        const rowPosition = visualPosition % 4;
+        if (rowPosition === 1) return MOBILE_PAIR_LEFT_ANCHOR;
+        if (rowPosition === 2) return MOBILE_PAIR_RIGHT_ANCHOR;
+        return MOBILE_DEFAULT_ANCHOR;
+    }
+
+    function getMobileVisualViewportAnchor(visual) {
+        const rect = visual.getBoundingClientRect();
+        return rect.top + rect.height * getMobileVisualAnchorRatio(visual);
+    }
+
+    function getMobileVisualPageAnchor(visual) {
+        const rect = visual.getBoundingClientRect();
+        return window.scrollY + rect.top + rect.height * getMobileVisualAnchorRatio(visual);
+    }
+
+    function getMobileSwitchHysteresis() {
+        return Math.max(22, Math.min(44, window.innerHeight * 0.035));
+    }
 
     // ---------- 悬停预览 ----------
     function applyHoverState(targetIndex) {
@@ -374,14 +410,6 @@ function initInteraction() {
         });
     }
 
-    function getMobileTitleCenters() {
-        return mobileItems.map(item => item.offsetTop + item.offsetHeight / 2);
-    }
-
-    function getMobileVisualCenters() {
-        return mobileVisuals.map(item => item.offsetTop + item.offsetHeight / 2);
-    }
-
     function applyMobileActive(targetIndex) {
         if (!isMobileLayout() || !targetIndex) return;
         mobileActiveTarget = targetIndex;
@@ -390,32 +418,44 @@ function initInteraction() {
     }
 
     function updateMobileWheel() {
-        if (!isMobileLayout() || expandedTarget || !mobileTitleTrack || !mobileGalleryTrack || mobileItems.length === 0) return;
-        const maxIndex = mobileItems.length - 1;
-        const progress = Math.max(0, Math.min(maxIndex, window.scrollY / MOBILE_WHEEL_STEP));
-        const activeIndex = Math.max(0, Math.min(maxIndex, Math.round(progress)));
-        const lowerIndex = Math.floor(progress);
-        const upperIndex = Math.min(maxIndex, lowerIndex + 1);
-        const localProgress = progress - lowerIndex;
-        const centers = getMobileTitleCenters();
-        const lowerCenter = centers[lowerIndex] ?? centers[0] ?? 0;
-        const upperCenter = centers[upperIndex] ?? lowerCenter;
-        const targetCenter = lowerCenter + (upperCenter - lowerCenter) * localProgress;
-        const viewportCenter = mobileTitleTrack.parentElement.clientHeight / 2;
+        if (!isMobileLayout() || expandedTarget || !mobileItems.length) return;
+        const focusY = window.innerHeight * MOBILE_FOCUS_Y_RATIO;
+        let closestVisual = mobileVisuals[0];
+        let closestDistance = Number.POSITIVE_INFINITY;
 
-        mobileTitleTrack.style.transform = `translate3d(0, ${viewportCenter - targetCenter}px, 0)`;
+        mobileVisuals.forEach(visual => {
+            const distance = Math.abs(getMobileVisualViewportAnchor(visual) - focusY);
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestVisual = visual;
+            }
+        });
 
-        const visualCenters = getMobileVisualCenters();
-        const lowerVisualCenter = visualCenters[lowerIndex] ?? visualCenters[0] ?? 0;
-        const upperVisualCenter = visualCenters[upperIndex] ?? lowerVisualCenter;
-        const visualTargetCenter = lowerVisualCenter + (upperVisualCenter - lowerVisualCenter) * localProgress;
-        const visualViewportCenter = mobileGallery.clientHeight / 2;
-        mobileGalleryTrack.style.transform = `translate3d(0, ${visualViewportCenter - visualTargetCenter}px, 0)`;
+        const targetIndex = closestVisual?.getAttribute('data-index');
+        if (!targetIndex || targetIndex === mobileActiveTarget) return;
 
-        const targetIndex = mobileItems[activeIndex]?.getAttribute('data-index');
-        if (targetIndex && targetIndex !== mobileActiveTarget) {
-            applyMobileActive(targetIndex);
+        if (mobileActiveTarget) {
+            const activeVisual = getMobileVisualByIndex(mobileActiveTarget);
+            if (activeVisual) {
+                const activeDistance = Math.abs(getMobileVisualViewportAnchor(activeVisual) - focusY);
+                if (closestDistance + getMobileSwitchHysteresis() >= activeDistance) return;
+            }
         }
+
+        applyMobileActive(targetIndex);
+    }
+
+    function scrollMobileVisualIntoFocus(targetIndex) {
+        if (!isMobileLayout()) return;
+        const visual = getMobileVisualByIndex(targetIndex);
+        if (!visual) return;
+
+        const targetTop = getMobileVisualPageAnchor(visual) - window.innerHeight * MOBILE_FOCUS_Y_RATIO;
+        const maxTop = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+        window.scrollTo({
+            top: Math.max(0, Math.min(targetTop, maxTop)),
+            behavior: 'smooth'
+        });
     }
 
     function scheduleMobileScrollUpdate() {
@@ -684,20 +724,16 @@ function initInteraction() {
             const item = this.closest('.mobile-project-item');
             const targetIndex = item?.getAttribute('data-index');
             if (!targetIndex) return;
-            window.scrollTo({
-                top: mobileItems.findIndex(project => project.getAttribute('data-index') === targetIndex) * MOBILE_WHEEL_STEP,
-                behavior: 'smooth'
-            });
+            applyMobileActive(targetIndex);
+            scrollMobileVisualIntoFocus(targetIndex);
         });
     });
 
     mobileVisuals.forEach(item => {
         item.addEventListener('click', function() {
             const targetIndex = this.getAttribute('data-index');
-            window.scrollTo({
-                top: mobileItems.findIndex(project => project.getAttribute('data-index') === targetIndex) * MOBILE_WHEEL_STEP,
-                behavior: 'smooth'
-            });
+            applyMobileActive(targetIndex);
+            scrollMobileVisualIntoFocus(targetIndex);
         });
     });
 
